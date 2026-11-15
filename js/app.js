@@ -12,6 +12,7 @@
   const Store = window.TankStore;
   const RT = window.TankRuntime;
   const M = window.TankMissions;
+  const T = window.TankTournament;
 
   const $ = (sel, root) => (root || document).querySelector(sel);
 
@@ -59,7 +60,7 @@
     return 1 + Math.floor(Math.random() * 999998);
   }
 
-  const PALETTE = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', '#e67e22', '#1abc9c', '#ff6fa8', '#95a5a6', '#ecf0f1'];
+  const PALETTE = RT.PALETTE;
 
   /* ---------- Réglages ---------- */
 
@@ -642,6 +643,7 @@
     opts.push({ value: 'draft', label: '✏️ ' + editor.draft.name + ' (atelier)', group: 'Atelier' });
     for (const t of Store.list()) opts.push({ value: 'lib:' + t.id, label: '💾 ' + t.name, group: 'Mes tanks' });
     for (const t of Bots.EXAMPLES) opts.push({ value: 'ex:' + t.id, label: '🤖 ' + t.name + ' (' + t.level + ')', group: 'Exemples' });
+    for (const e of tournament.data ? tournament.data.entries : []) opts.push({ value: 'tour:' + e.id, label: '🏆 ' + e.name, group: 'Tournoi' });
     opts.push({ value: 'pilot', label: '🎮 Pilote clavier', group: 'Humain' });
     return opts;
   }
@@ -682,6 +684,11 @@
       if (!t) return null;
       name = t.name; color = t.color;
       compile = () => B.compileState(t.workspace, true);
+    } else if (value.startsWith('tour:')) {
+      const t = tournament.entry(value.slice(5));
+      if (!t) return null;
+      name = t.name; color = t.color;
+      compile = () => B.compileState(t.workspace, true);
     } else {
       return null;
     }
@@ -694,30 +701,454 @@
     return spec;
   }
 
-  /** Couleurs et noms distincts pour une partie. */
-  function distinctify(specs) {
-    const usedColors = new Set();
-    const names = new Map();
-    return specs.map((s) => {
-      const out = Object.assign({}, s);
-      let c = (s.color || '').toLowerCase();
-      if (!c || usedColors.has(c)) c = PALETTE.find((p) => !usedColors.has(p)) || c;
-      usedColors.add(c);
-      out.color = c;
-      const n = (names.get(s.name) || 0) + 1;
-      names.set(s.name, n);
-      if (n > 1) out.name = s.name + ' ' + n;
-      return out;
-    });
-  }
+  const distinctify = RT.distinctify;
+  const buildEntrants = RT.buildEntrants;
 
-  function buildEntrants(specs, seed) {
-    return specs.map((s, i) => {
-      const e = RT.makeEntrant(s, i, seed);
-      if (s.error) { e.error = s.error; e.brain = null; }
-      return e;
-    });
-  }
+  /* =====================================================================
+   * TOURNOI DE CLASSE
+   * ===================================================================== */
+
+  const GENERIC_NAMES = ['mon tank', 'nouveau tank', 'sans nom', 'tank importé'];
+  const MAX_ENTRIES = 64;
+
+  const tournament = {
+    data: null,
+    running: false,
+    cancel: false,
+    filter: '',
+
+    init() {
+      const saved = Store.getTournament();
+      this.data = Object.assign({ entries: [], rounds: 2, duration: 3600, run: null }, saved || {});
+      if (!Array.isArray(this.data.entries)) this.data.entries = [];
+
+      $('#tour-import').addEventListener('click', () => $('#tour-files').click());
+      $('#tour-files').addEventListener('change', (e) => {
+        const files = Array.from(e.target.files || []);
+        e.target.value = '';
+        this.addFiles(files);
+      });
+      $('#tour-clear').addEventListener('click', () => this.clear());
+      $('#tour-add').addEventListener('click', () => this.addSource($('#tour-add-source').value));
+      $('#tour-rounds').value = String(this.data.rounds);
+      $('#tour-rounds').addEventListener('change', (e) => { this.data.rounds = Number(e.target.value) || 2; this.save(); this.renderEstimate(); });
+      $('#tour-duration').value = String(this.data.duration);
+      $('#tour-duration').addEventListener('change', (e) => { this.data.duration = Number(e.target.value) || 3600; this.save(); });
+      $('#tour-run').addEventListener('click', () => { if (this.running) this.cancel = true; else this.run(); });
+      $('#tour-final').addEventListener('click', () => this.finale());
+      $('#tour-csv').addEventListener('click', () => this.exportCsv());
+      $('#tour-filter').addEventListener('change', (e) => { this.filter = e.target.value; this.renderPairs(); });
+
+      // glisser-déposer de fichiers n'importe où dans la vue
+      const view = $('#view-tournoi');
+      const zone = $('#tour-drop');
+      const hasFiles = (e) => !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
+      view.addEventListener('dragover', (e) => {
+        if (!hasFiles(e)) return;
+        e.preventDefault();
+        zone.classList.add('dragging');
+      });
+      view.addEventListener('dragleave', (e) => { if (e.target === view || !view.contains(e.relatedTarget)) zone.classList.remove('dragging'); });
+      view.addEventListener('drop', (e) => {
+        if (!hasFiles(e)) return;
+        e.preventDefault();
+        zone.classList.remove('dragging');
+        this.addFiles(Array.from(e.dataTransfer.files));
+      });
+
+      this.render();
+    },
+
+    save() {
+      if (!Store.setTournament(this.data)) this.message('⚠ Impossible d\'enregistrer le tournoi dans ce navigateur (stockage plein ?).', 'error');
+    },
+
+    message(text, kind) {
+      const m = $('#tour-msg');
+      m.textContent = text || '';
+      m.className = 'status ' + (kind || '');
+    },
+
+    entry(id) {
+      return (this.data && this.data.entries.find((e) => e.id === id)) || null;
+    },
+
+    nameOf(id) {
+      const e = this.entry(id);
+      return e ? e.name : '(retiré)';
+    },
+
+    colorOf(id) {
+      const e = this.entry(id);
+      return e ? e.color : '#555';
+    },
+
+    /** Ajoute un tank ; renvoie 'ok', 'dup' ou 'full' (exception si le programme est illisible). */
+    add(t, origin) {
+      if (this.data.entries.length >= MAX_ENTRIES) return 'full';
+      // même nom ET même programme : le même fichier importé deux fois
+      const sig = JSON.stringify(t.workspace);
+      const name = String(t.name || 'Sans nom').slice(0, 40).toLowerCase();
+      if (this.data.entries.some((e) => e.name.toLowerCase() === name && JSON.stringify(e.workspace) === sig)) return 'dup';
+      B.compileState(t.workspace, false);
+      this.data.entries.push({
+        id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+        name: String(t.name || 'Sans nom').slice(0, 40),
+        color: /^#[0-9a-f]{6}$/i.test(t.color || '') ? t.color : PALETTE[this.data.entries.length % PALETTE.length],
+        workspace: t.workspace,
+        origin: origin || '',
+      });
+      return 'ok';
+    },
+
+    async addFiles(files) {
+      if (this.running || !files.length) return;
+      let added = 0;
+      const problems = [];
+      for (const f of files) {
+        try {
+          const t = await Store.importFile(f);
+          const r = this.add(t, f.name);
+          if (r === 'ok') added++;
+          else if (r === 'dup') problems.push(f.name + ' : déjà dans la liste');
+          else { problems.push(MAX_ENTRIES + ' participants au maximum'); break; }
+        } catch (e) {
+          problems.push(f.name + ' : ' + e.message);
+        }
+      }
+      this.changed();
+      let msg = added + ' tank' + (added > 1 ? 's ajoutés.' : ' ajouté.');
+      if (problems.length) msg += ' Non ajouté' + (problems.length > 1 ? 's' : '') + ' : ' + problems.join(' ; ') + '.';
+      this.message(msg, problems.length ? 'error' : 'ok');
+    },
+
+    addSource(value) {
+      if (!value || this.running) return;
+      let t = null;
+      let origin = '';
+      if (value === 'draft') {
+        t = { name: editor.draft.name, color: editor.draft.color, workspace: editor.serialize() };
+        origin = 'atelier';
+      } else if (value.startsWith('lib:')) {
+        t = Store.get(value.slice(4));
+        origin = 'mes tanks';
+      } else if (value.startsWith('ex:')) {
+        t = Bots.EXAMPLES.find((x) => 'ex:' + x.id === value);
+        origin = 'exemple';
+      }
+      if (!t) return;
+      let r;
+      try {
+        r = this.add(t, origin);
+      } catch (e) {
+        this.message('Programme illisible : ' + e.message, 'error');
+        return;
+      }
+      this.changed();
+      if (r === 'ok') this.message('« ' + t.name + ' » ajouté.', 'ok');
+      else if (r === 'dup') this.message('« ' + t.name + ' » est déjà dans la liste.', 'error');
+      else this.message(MAX_ENTRIES + ' participants au maximum.', 'error');
+    },
+
+    remove(id) {
+      if (this.running) return;
+      this.data.entries = this.data.entries.filter((e) => e.id !== id);
+      this.changed();
+    },
+
+    rename(id, name) {
+      const e = this.entry(id);
+      if (!e) return;
+      e.name = String(name).trim().slice(0, 40) || 'Sans nom';
+      this.save();
+      this.renderRoster();
+      this.renderResults();
+      arena.refreshSlotOptions();
+    },
+
+    async clear() {
+      if (this.running || (!this.data.entries.length && !this.data.run)) return;
+      if (!(await ask('Retirer tous les participants et effacer les résultats du tournoi ?', 'Tout retirer'))) return;
+      this.data.entries = [];
+      this.data.run = null;
+      this.message('');
+      this.changed();
+    },
+
+    /** Après un changement de la liste des participants. */
+    changed() {
+      this.save();
+      this.render();
+      arena.refreshSlotOptions();
+    },
+
+    render() {
+      this.renderRoster();
+      this.renderAddSource();
+      this.renderEstimate();
+      this.renderResults();
+    },
+
+    renderAddSource() {
+      const sel = $('#tour-add-source');
+      const exclude = this.data.entries.map((e) => 'tour:' + e.id).concat(['pilot']);
+      fillSelect(sel, sel.value || 'ex:ex-sentinelle', false, exclude);
+    },
+
+    renderRoster() {
+      const table = $('#tour-roster');
+      table.textContent = '';
+      const entries = this.data.entries;
+      $('#tour-count').textContent = entries.length ? '(' + entries.length + ')' : '';
+      if (!entries.length) {
+        table.appendChild(el('tbody', null, el('tr', null, el('td', { class: 'empty' }, 'Aucun participant pour l\'instant.'))));
+        return;
+      }
+      const counts = new Map();
+      for (const e of entries) counts.set(e.name.toLowerCase(), (counts.get(e.name.toLowerCase()) || 0) + 1);
+      // programmes identiques sous des noms différents (copie d'un camarade ou d'un exemple non modifié)
+      const sigs = new Map();
+      for (const e of entries) {
+        const k = JSON.stringify(e.workspace);
+        if (!sigs.has(k)) sigs.set(k, []);
+        sigs.get(k).push(e);
+      }
+      const twins = (e) => sigs.get(JSON.stringify(e.workspace)).filter((o) => o !== e);
+      table.appendChild(el('thead', null, el('tr', null, el('th', null, '#'), el('th', null, 'Nom'), el('th', null, 'Provenance'), el('th', null, ''))));
+      const tb = el('tbody');
+      entries.forEach((e, i) => {
+        const lower = e.name.toLowerCase();
+        const warn = counts.get(lower) > 1 || GENERIC_NAMES.includes(lower);
+        const input = el('input', {
+          type: 'text', value: e.name, maxlength: '40', class: warn ? 'warn' : '',
+          'aria-label': 'Nom du participant ' + (i + 1),
+          title: warn ? 'Plusieurs tanks portent ce nom (ou c\'est le nom par défaut) : renomme-le pour le reconnaître.' : '',
+        });
+        input.addEventListener('change', () => this.rename(e.id, input.value));
+        tb.appendChild(el('tr', null,
+          el('td', { class: 'num' }, String(i + 1)),
+          el('td', null, el('div', { class: 'name-cell' }, el('span', { class: 'dot', style: 'background:' + e.color }), input, warn ? el('span', { class: 'warn-icon', title: input.title }, '⚠') : null)),
+          el('td', { class: 'muted', title: e.origin }, e.origin,
+            twins(e).length ? el('div', { class: 'twin', title: 'Les programmes sont strictement identiques.' }, '⚠ même programme que ' + twins(e).map((o) => o.name).join(', ')) : null),
+          el('td', null, el('button', { class: 'btn small danger', title: 'Retirer', 'aria-label': 'Retirer ' + e.name, onclick: () => this.remove(e.id) }, '✕'))));
+      });
+      table.appendChild(tb);
+    },
+
+    renderEstimate() {
+      const n = this.data.entries.length;
+      const pairs = (n * (n - 1)) / 2;
+      const total = pairs * this.data.rounds;
+      $('#tour-estimate').textContent = n < 2
+        ? 'Il faut au moins 2 participants.'
+        : n + ' participants : ' + pairs + ' rencontre' + (pairs > 1 ? 's' : '') + ', soit ' + total + ' manche' + (total > 1 ? 's' : '') + ' à calculer.';
+      if (!this.running) $('#tour-run').disabled = n < 2;
+    },
+
+    async run() {
+      const entries = this.data.entries.slice();
+      if (entries.length < 2 || this.running) return;
+      if (arena.state === 'running') arena.pause();
+      this.running = true;
+      this.cancel = false;
+      const specs = new Map();
+      for (const e of entries) {
+        const spec = { name: e.name, color: e.color, source: 'tour:' + e.id, code: '' };
+        try {
+          spec.code = B.compileState(e.workspace, true);
+        } catch (err) {
+          spec.error = 'programme illisible : ' + err.message;
+        }
+        specs.set(e.id, spec);
+      }
+      const ids = entries.map((e) => e.id);
+      const run = {
+        at: new Date().toISOString(),
+        baseSeed: randomSeed(),
+        rounds: this.data.rounds,
+        duration: this.data.duration,
+        ids,
+        manches: [],
+        complete: false,
+      };
+      run.manches = T.schedule(ids, run.rounds, run.baseSeed);
+
+      const btn = $('#tour-run');
+      const bar = $('#tour-progress');
+      const txt = $('#tour-progress-text');
+      btn.textContent = '⏹ Arrêter';
+      bar.hidden = false;
+      txt.hidden = false;
+      bar.max = run.manches.length;
+      bar.value = 0;
+      const yieldUI = () => new Promise((r) => setTimeout(r, 0));
+      let t0 = performance.now();
+      let done = 0;
+      for (const m of run.manches) {
+        if (this.cancel) break;
+        m.result = T.playManche([specs.get(m.a), specs.get(m.b)], m.seed, run.duration);
+        done++;
+        if (performance.now() - t0 > 30) {
+          bar.value = done;
+          txt.textContent = 'Manche ' + done + ' / ' + run.manches.length + '…';
+          await yieldUI();
+          t0 = performance.now();
+        }
+      }
+      run.complete = done === run.manches.length;
+      this.data.run = run;
+      this.running = false;
+      btn.textContent = '🏆 Lancer le tournoi';
+      bar.hidden = true;
+      txt.hidden = true;
+      this.filter = '';
+      this.save();
+      this.render();
+      if (done) $('#tour-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    },
+
+    isStale() {
+      const run = this.data.run;
+      if (!run) return false;
+      const now = this.data.entries.map((e) => e.id).sort().join(',');
+      return run.ids.slice().sort().join(',') !== now;
+    },
+
+    renderResults() {
+      const run = this.data.run;
+      const box = $('#tour-results');
+      if (!run) { box.hidden = true; return; }
+      box.hidden = false;
+      const rows = T.standings(run.ids, run.manches);
+      const played = run.manches.filter((m) => m.result).length;
+      const date = new Date(run.at);
+      let meta = run.ids.length + ' participants · ' + played + ' manche' + (played > 1 ? 's' : '') +
+        (run.complete ? '' : ' (tournoi interrompu)') + ' · ' + run.rounds + ' par rencontre, ' + fmtTime(run.duration) + ' chacune';
+      if (!isNaN(date)) meta += ' · ' + date.toLocaleDateString('fr-FR') + ' à ' + date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      if (this.isStale()) meta += ' — ⚠ les participants ont changé depuis : relance le tournoi pour mettre le classement à jour.';
+      $('#tour-meta').textContent = meta;
+
+      const table = $('#tour-table');
+      table.textContent = '';
+      table.appendChild(el('thead', null, el('tr', null,
+        el('th', null, '#'), el('th', null, 'Tank'), el('th', { title: 'Points' }, 'Pts'),
+        el('th', { title: 'Victoires' }, 'V'), el('th', { title: 'Matchs nuls' }, 'N'), el('th', { title: 'Défaites' }, 'D'),
+        el('th', null, 'Dégâts infligés'), el('th', null, 'Dégâts reçus'))));
+      const tb = el('tbody');
+      for (const r of rows) {
+        tb.appendChild(el('tr', { class: r.rank === 1 ? 'winner' : '' },
+          el('td', null, String(r.rank) + (r.rank === 1 ? ' 🏆' : '')),
+          el('td', null, el('span', { class: 'dot', style: 'background:' + this.colorOf(r.id) + ';margin-right:6px' }), this.nameOf(r.id),
+            r.broken ? el('span', { class: 'warn-icon', title: 'Programme en panne pendant ' + r.broken + ' manche(s)' }, ' ⚠') : null),
+          el('td', null, el('b', null, String(r.points))),
+          el('td', null, String(r.wins)), el('td', null, String(r.draws)), el('td', null, String(r.losses)),
+          el('td', null, String(r.dealt)), el('td', null, String(r.taken))));
+      }
+      table.appendChild(tb);
+
+      const filter = $('#tour-filter');
+      filter.textContent = '';
+      filter.appendChild(el('option', { value: '' }, 'tous les participants'));
+      for (const r of rows) filter.appendChild(el('option', { value: r.id }, this.nameOf(r.id)));
+      filter.value = this.filter;
+      if (filter.value !== this.filter) this.filter = '';
+      $('#tour-final').disabled = rows.filter((r) => this.entry(r.id)).length < 2;
+      this.renderPairs();
+    },
+
+    outcome(m) {
+      const r = m.result;
+      if (!r) return 'pas jouée';
+      if (r.winner < 0) return 'match nul (' + r.damage[0] + ' – ' + r.damage[1] + ' dégâts)';
+      const w = r.winner === 0 ? m.a : m.b;
+      return 'victoire de ' + this.nameOf(w) + ' (' + Math.max(r.damage[0], r.damage[1]) + ' dégâts contre ' + Math.min(r.damage[0], r.damage[1]) + ')';
+    },
+
+    renderPairs() {
+      const run = this.data.run;
+      const ul = $('#tour-pairs');
+      ul.textContent = '';
+      if (!run) return;
+      const pairIds = Array.from(new Set(run.manches.map((m) => m.pair)));
+      const LIMIT = 200;
+      let shown = 0;
+      for (const p of pairIds) {
+        const s = T.pairSummary(run.manches, p);
+        if (!s || (this.filter && s.x !== this.filter && s.y !== this.filter)) continue;
+        if (shown >= LIMIT) {
+          ul.appendChild(el('li', { class: 'hint' }, 'Liste raccourcie : choisis un participant pour voir toutes ses rencontres.'));
+          break;
+        }
+        shown++;
+        const name = (id, win, right) => el('span', { class: 'pn' + (right ? ' right' : '') + (win ? ' win' : '') },
+          right ? null : el('span', { class: 'dot', style: 'background:' + this.colorOf(id) }),
+          el('span', { class: 'ellipsis' }, this.nameOf(id)),
+          right ? el('span', { class: 'dot', style: 'background:' + this.colorOf(id) }) : null);
+        ul.appendChild(el('li', { class: 'pair' },
+          name(s.x, s.winsX > s.winsY, false),
+          el('span', { class: 'pscore', title: s.draws ? s.draws + ' match(s) nul(s)' : '' }, s.winsX + ' – ' + s.winsY + (s.draws ? '*' : '')),
+          name(s.y, s.winsY > s.winsX, true),
+          el('span', { class: 'manches' }, s.manches.map((m, k) => el('button', {
+            class: 'btn small',
+            title: 'Revoir la manche ' + (k + 1) + ' : ' + this.outcome(m),
+            disabled: !m.result || !this.entry(m.a) || !this.entry(m.b),
+            onclick: () => this.watch(m),
+          }, '▶ ' + (k + 1))))));
+      }
+      if (!shown) ul.appendChild(el('li', { class: 'hint' }, 'Aucune rencontre.'));
+    },
+
+    /** Rejoue une manche dans l'arène, à l'identique. */
+    watch(m) {
+      const run = this.data.run;
+      if (!run || !this.entry(m.a) || !this.entry(m.b)) return;
+      if (editor.mission) editor.exitMission();
+      settings.duration = run.duration;
+      $('#duration').value = String(run.duration);
+      arena.seed = m.seed;
+      settings.seed = m.seed;
+      $('#seed').value = String(m.seed);
+      arena.setSlots(['tour:' + m.a, 'tour:' + m.b, '', '']);
+      saveSettings();
+      showView('arene');
+      arena.rebuild();
+      arena.play();
+    },
+
+    /** Les quatre premiers s'affrontent dans l'arène. */
+    finale() {
+      const run = this.data.run;
+      if (!run) return;
+      const top = T.standings(run.ids, run.manches).filter((r) => this.entry(r.id)).slice(0, 4);
+      if (top.length < 2) return;
+      if (editor.mission) editor.exitMission();
+      settings.duration = run.duration;
+      $('#duration').value = String(run.duration);
+      arena.setSlots(top.map((r) => 'tour:' + r.id));
+      showView('arene');
+      arena.newMatch(true);
+    },
+
+    exportCsv() {
+      const run = this.data.run;
+      if (!run) return;
+      const cell = (v) => {
+        const str = String(v);
+        return /[;"\n]/.test(str) ? '"' + str.replace(/"/g, '""') + '"' : str;
+      };
+      const lines = [['Rang', 'Tank', 'Points', 'Victoires', 'Nuls', 'Défaites', 'Dégâts infligés', 'Dégâts reçus', 'Manches jouées'].join(';')];
+      for (const r of T.standings(run.ids, run.manches)) {
+        lines.push([r.rank, cell(this.nameOf(r.id)), r.points, r.wins, r.draws, r.losses, r.dealt, r.taken, r.played].join(';'));
+      }
+      const blob = new Blob(['﻿' + lines.join('\r\n') + '\r\n'], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = el('a', { href: url, download: 'classement-tournoi.csv' });
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    },
+  };
 
   /* =====================================================================
    * CLAVIER
@@ -870,6 +1301,7 @@
         settings.slots[i] = v;
       });
       fillSelect($('#test-opponent'), settings.opponent, false, ['draft']);
+      if (tournament.data) tournament.renderAddSource();
       this.updatePilotHelp();
     },
 
@@ -1483,7 +1915,7 @@
    * NAVIGATION
    * ===================================================================== */
 
-  const VIEWS = ['missions', 'atelier', 'arene', 'guide'];
+  const VIEWS = ['missions', 'atelier', 'arene', 'tournoi', 'guide'];
 
   function showView(name) {
     if (!VIEWS.includes(name)) name = 'missions';
@@ -1502,6 +1934,7 @@
       }
     }
     if (name === 'missions') missionsView.render();
+    if (name === 'tournoi') tournament.render();
     if (name === 'arene') arena.onShow();
     else arena.onHide();
   }
@@ -1524,6 +1957,7 @@
   function boot() {
     if (!Blockly || !window.javascript || !B) throw new Error('Blockly n\'a pas pu être chargé.');
     editor.init();
+    tournament.init();
     arena.init();
     missionsView.init();
     initSound();
@@ -1543,7 +1977,7 @@
     const initial = location.hash.slice(1);
     showView(VIEWS.includes(initial) ? initial : settings.view);
     // pour le débogage depuis la console
-    window.TankoBlocs = { editor, arena, settings, missionsView };
+    window.TankoBlocs = { editor, arena, settings, missionsView, tournament };
   }
 
   try {

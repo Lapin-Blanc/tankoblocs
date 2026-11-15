@@ -76,6 +76,9 @@
       }
     },
 
+    getTournament() { return read('tournament', null); },
+    setTournament(t) { return write('tournament', t); },
+
     getSettings() { return read('settings', {}); },
     setSettings(s) { return write('settings', s); },
 
@@ -107,7 +110,12 @@
         reader.onerror = () => reject(new Error('lecture du fichier impossible'));
         reader.onload = () => {
           try {
-            const data = JSON.parse(String(reader.result));
+            let data;
+            try {
+              data = JSON.parse(String(reader.result));
+            } catch (e) {
+              throw new Error('fichier abîmé, ou qui n\'est pas un fichier de tank');
+            }
             if (!data || typeof data !== 'object') throw new Error('fichier vide');
             // accepte aussi un état Blockly brut
             const workspace = data.format === FORMAT ? data.workspace : (data.blocks ? data : null);

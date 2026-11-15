@@ -24,6 +24,7 @@ Les tanks sont enregistrés dans le navigateur (`localStorage`). Le bouton **Exp
 | --- | --- |
 | 🎓 Missions | Parcours guidé de 11 missions pour débuter (voir ci-dessous). C'est l'onglet affiché à la première visite. |
 | 🛠️ Atelier | Éditeur Blockly en français, couleur et nom du tank, bibliothèque « Mes tanks », import/export, exemples à étudier, aperçu du JavaScript généré, bouton « Combattre ». |
+| 🏆 Tournoi | Tournoi de classe : tous les tanks des élèves s'affrontent en duel, classement, manches à revoir, finale (voir ci-dessous). |
 | ⚔️ Arène | De 1 à 4 participants (mes tanks, exemples, tank en cours d'édition, pilote clavier), lecture, pause, tick par tick, vitesse ×¼ à ×16, tableau de bord, journal, résultats et **championnat express** (des dizaines de manches calculées en une fraction de seconde). |
 | 📖 Guide | Règles complètes, repère et angles, file d'ordres, événements, référence des blocs, astuces de stratégie. |
 
@@ -50,6 +51,20 @@ Onze missions courtes, une notion à la fois. Chacune propose :
 | 11 | Premier duel | tout réunir | battre la Sentinelle |
 
 Le programme et la progression de chaque mission sont gardés dans le navigateur. « Quitter la mission » ramène à l'atelier libre, avec le tank qu'on y avait laissé. Les missions 10 et 11 partent du programme écrit lors de la mission précédente qui s'y rapporte.
+
+### Le tournoi de classe
+
+1. Chaque élève met son prénom dans le nom de son tank et clique sur **Exporter** dans l'atelier.
+2. L'enseignant rassemble les fichiers `.tank.json`, puis les importe tous d'un coup dans l'onglet **🏆 Tournoi** (sélection multiple ou glisser-déposer). On peut aussi ajouter des tanks d'exemple comme adversaires de référence.
+3. Les noms restent modifiables. Les noms par défaut (« Mon tank ») et les programmes strictement identiques sous deux noms différents sont signalés.
+4. **Chacun contre chacun en duel**, sur 1, 2 ou 4 manches par rencontre. Les positions de départ changent à chaque manche, et l'ordre des tanks est inversé une manche sur deux. Barème : victoire 3 points, nul 1, défaite 0 ; départage aux dégâts infligés, puis au nombre de victoires.
+5. Résultats :
+   - classement, exportable en CSV ;
+   - liste des rencontres, filtrable par élève ;
+   - bouton ▶ pour **revoir n'importe quelle manche** dans l'arène, rejouée à l'identique grâce au moteur déterministe ;
+   - **finale à quatre** des premiers, à projeter.
+
+Le calcul est rapide : une classe de 30 élèves, soit 870 manches d'une minute, prend environ 5 secondes. Participants et résultats restent enregistrés dans le navigateur de l'enseignant.
 
 ### Les blocs
 
@@ -99,6 +114,7 @@ js/runtime.js       exécution du code généré : API « tank. », variables pa
 js/blocks.js        blocs Blockly, générateurs JavaScript, thème, boîte à outils, compilation
 js/bots.js          tanks d'exemple (construits en blocs) et modèle de départ
 js/missions.js      parcours : missions, boîtes à outils réduites, vérification des objectifs
+js/tournament.js    tournoi : calendrier des duels, manches, classement
 js/renderer.js      dessin de l'arène (canvas)
 js/audio.js         sons synthétisés (WebAudio)
 js/storage.js       bibliothèque locale, import/export
@@ -113,11 +129,12 @@ Après une modification d'un fichier `js/` ou `css/`, incrémenter `?v=` dans `i
 
 ## Tests
 
-Ouvrir `tests/index.html` (de la même façon que le jeu). 61 tests vérifient :
+Ouvrir `tests/index.html` (de la même façon que le jeu). 65 tests vérifient :
 - les règles : verrouillages, recharge, déplacements et rotations, dégâts (murs, chocs, obus), radar, ordre de la file ;
 - les blocs « orienter » et « tirer dès que prêt », les pannes, les boucles infinies, la fin de partie, la reproductibilité, le classement ;
 - la compilation puis l'exécution de chaque exemple ;
-- pour chaque mission : la solution réussit (sur 10 positions de départ quand elles sont aléatoires), le programme de départ ne suffit pas, et tous les blocs de la solution figurent dans la boîte à outils de la mission.
+- pour chaque mission : la solution réussit (sur 10 positions de départ quand elles sont aléatoires), le programme de départ ne suffit pas, et tous les blocs de la solution figurent dans la boîte à outils de la mission ;
+- pour le tournoi : le calendrier, l'alternance de l'ordre, les points et les ex aequo, et le fait qu'une manche rejouée donne exactement le même résultat.
 
 ## Licence
 

@@ -185,5 +185,36 @@
     return entrant;
   }
 
-  root.TankRuntime = { createBrain, makeEntrant, constant, LOOP_BUDGET, EVENT_KINDS };
+  const PALETTE = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', '#e67e22', '#1abc9c', '#ff6fa8', '#95a5a6', '#ecf0f1'];
+
+  /**
+   * Couleurs et noms distincts pour une partie.
+   * L'arène et le tournoi passent tous deux par ici : une manche de tournoi
+   * rejouée dans l'arène est ainsi exactement identique.
+   */
+  function distinctify(specs) {
+    const usedColors = new Set();
+    const names = new Map();
+    return specs.map((s) => {
+      const out = Object.assign({}, s);
+      let c = (s.color || '').toLowerCase();
+      if (!c || usedColors.has(c)) c = PALETTE.find((p) => !usedColors.has(p)) || c;
+      usedColors.add(c);
+      out.color = c;
+      const n = (names.get(s.name) || 0) + 1;
+      names.set(s.name, n);
+      if (n > 1) out.name = s.name + ' ' + n;
+      return out;
+    });
+  }
+
+  function buildEntrants(specs, seed) {
+    return specs.map((s, i) => {
+      const e = makeEntrant(s, i, seed);
+      if (s.error) { e.error = s.error; e.brain = null; }
+      return e;
+    });
+  }
+
+  root.TankRuntime = { createBrain, makeEntrant, constant, LOOP_BUDGET, EVENT_KINDS, PALETTE, distinctify, buildEntrants };
 })(typeof window !== 'undefined' ? window : globalThis);

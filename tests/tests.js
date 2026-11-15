@@ -317,6 +317,66 @@
     }
   }
 
+  /* ---------- Tournoi de classe ---------- */
+
+  if (window.TankTournament && window.TankBlocks) {
+    const T = window.TankTournament;
+    const B = window.TankBlocks;
+    const Bots = window.TankBots;
+
+    test('tournoi : calendrier complet, ordre inversé une manche sur deux', () => {
+      const list = T.schedule(['a', 'b', 'c', 'd'], 2, 123);
+      eq(list.length, 12, '6 rencontres × 2 manches');
+      const pairs = new Set(list.map((m) => [m.a, m.b].sort().join('-')));
+      eq(pairs.size, 6, 'chaque paire une fois');
+      const ab = list.filter((m) => m.pair === 0);
+      eq(ab[0].a, ab[1].b, 'ordre inversé');
+      assert(ab[0].seed !== ab[1].seed, 'positions différentes');
+    });
+
+    test('tournoi : points, départage et ex aequo', () => {
+      const r = (winner, d0, d1) => ({ winner, damage: [d0, d1], health: [0, 0], broken: [false, false], ticks: 1 });
+      const manches = [
+        { pair: 0, a: 'a', b: 'b', result: r(0, 30, 10) }, // a bat b
+        { pair: 1, a: 'a', b: 'c', result: r(-1, 0, 0) }, // nul
+        { pair: 2, a: 'b', b: 'c', result: r(1, 20, 40) }, // c bat b
+        { pair: 3, a: 'd', b: 'b', result: r(1, 0, 10) }, // b bat d
+      ];
+      const rows = T.standings(['a', 'b', 'c', 'd'], manches);
+      const by = Object.fromEntries(rows.map((x) => [x.id, x]));
+      eq(by.a.points, 4); eq(by.c.points, 4); eq(by.b.points, 3); eq(by.d.points, 0);
+      eq(rows[0].id, 'c', 'départage aux dégâts infligés (40 contre 30)');
+      eq(by.a.rank, 2);
+      eq(by.b.taken, 70, 'dégâts reçus de b');
+      const tie = T.standings(['x', 'y'], [{ pair: 0, a: 'x', b: 'y', result: r(-1, 10, 10) }]);
+      eq(tie[0].rank, 1); eq(tie[1].rank, 1, 'ex aequo');
+    });
+
+    test('tournoi : une manche se rejoue à l\'identique', () => {
+      const code = (id) => B.compileState(Bots.EXAMPLES.find((e) => e.id === id).workspace, true);
+      const specs = [{ name: 'Chasseur', color: '#9b59b6', code: code('ex-chasseur') }, { name: 'Vagabond', color: '#2ecc71', code: code('ex-vagabond') }];
+      const r1 = T.playManche(specs, 4242, 3600);
+      const r2 = T.playManche(specs, 4242, 3600);
+      eq(JSON.stringify(r1), JSON.stringify(r2));
+      // même construction que l'arène
+      const m = new E.Match({ entrants: RT.buildEntrants(RT.distinctify(specs), 4242), seed: 4242, maxTicks: 3600 });
+      while (!m.finished) m.step();
+      eq(m.results.winner, r1.winner);
+      eq(m.tanks[0].damageDealt, r1.damage[0]);
+      eq(m.tanks[1].damageDealt, r1.damage[1]);
+    });
+
+    test('tournoi : bilan d\'une rencontre', () => {
+      const r = (winner) => ({ winner, damage: [0, 0], health: [0, 0], broken: [false, false], ticks: 1 });
+      const s = T.pairSummary([
+        { pair: 0, a: 'a', b: 'b', result: r(0) },
+        { pair: 0, a: 'b', b: 'a', result: r(0) },
+        { pair: 0, a: 'a', b: 'b', result: r(-1) },
+      ], 0);
+      eq(s.winsX, 1); eq(s.winsY, 1); eq(s.draws, 1);
+    });
+  }
+
   window.__testResults = results;
   const failed = results.filter((r) => !r.ok);
   const out = document.getElementById('out');

@@ -6,7 +6,7 @@
   <title>TankoBlocs</title>
   <meta name="description" content="Programme ton tank avec des blocs et affronte les autres dans l'arène.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='9' width='22' height='15' rx='4' fill='%23D9822B'/%3E%3Crect x='2' y='6' width='24' height='4' rx='2' fill='%2326323a'/%3E%3Crect x='2' y='23' width='24' height='4' rx='2' fill='%2326323a'/%3E%3Ccircle cx='13' cy='16.5' r='5' fill='%23F0B27A'/%3E%3Crect x='15' y='15' width='15' height='3' rx='1' fill='%233a4248'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="css/style.css?v=4">
+  <link rel="stylesheet" href="css/style.css?v=7">
 </head>
 <body>
   <header class="topbar">
@@ -22,10 +22,11 @@
       <span>Tanko<b>Blocs</b></span>
     </a>
     <nav class="tabs" role="tablist" aria-label="Sections">
-      <button role="tab" id="tab-missions" data-view="missions" aria-controls="view-missions" aria-selected="false">🎓 <span>Missions</span></button>
-      <button role="tab" id="tab-atelier" data-view="atelier" aria-controls="view-atelier" aria-selected="true">🛠️ <span>Atelier</span></button>
-      <button role="tab" id="tab-arene" data-view="arene" aria-controls="view-arene" aria-selected="false">⚔️ <span>Arène</span></button>
-      <button role="tab" id="tab-guide" data-view="guide" aria-controls="view-guide" aria-selected="false">📖 <span>Guide</span></button>
+      <button role="tab" id="tab-missions" data-view="missions" aria-label="Missions" title="Missions" aria-controls="view-missions" aria-selected="false">🎓 <span>Missions</span></button>
+      <button role="tab" id="tab-atelier" data-view="atelier" aria-label="Atelier" title="Atelier" aria-controls="view-atelier" aria-selected="true">🛠️ <span>Atelier</span></button>
+      <button role="tab" id="tab-arene" data-view="arene" aria-label="Arène" title="Arène" aria-controls="view-arene" aria-selected="false">⚔️ <span>Arène</span></button>
+      <button role="tab" id="tab-tournoi" data-view="tournoi" aria-label="Tournoi" title="Tournoi" aria-controls="view-tournoi" aria-selected="false">🏆 <span>Tournoi</span></button>
+      <button role="tab" id="tab-guide" data-view="guide" aria-label="Guide" title="Guide" aria-controls="view-guide" aria-selected="false">📖 <span>Guide</span></button>
     </nav>
     <div class="topbar-right">
       <button id="btn-sound" class="icon-btn" title="Couper / activer le son" aria-pressed="true">🔊</button>
@@ -231,6 +232,76 @@
       </aside>
     </section>
 
+    <!-- ===================== TOURNOI ===================== -->
+    <section id="view-tournoi" class="view tournoi" role="tabpanel" aria-labelledby="tab-tournoi">
+      <div class="tour-body">
+        <h1>🏆 Tournoi de classe</h1>
+        <p class="lead">Chaque tank affronte tous les autres en duel. Le calcul est instantané : il ne reste qu'à découvrir le classement, puis à projeter les plus beaux matchs.</p>
+
+        <div class="card" id="tour-drop">
+          <div class="card-title">
+            <h3>Participants <span id="tour-count"></span></h3>
+            <div class="row tight">
+              <button id="tour-import" class="btn primary small">📂 Importer des fichiers…</button>
+              <button id="tour-clear" class="btn small">Tout retirer</button>
+            </div>
+            <input type="file" id="tour-files" accept=".json,application/json" multiple hidden>
+          </div>
+          <p class="hint">Chaque élève clique sur « ⬇️ Exporter » dans l'atelier et te transmet son fichier <code>.tank.json</code>. Sélectionne-les tous d'un coup, ou <strong>glisse-les dans ce cadre</strong>. Pense à demander aux élèves de mettre leur prénom dans le nom de leur tank (les noms restent modifiables ici).</p>
+          <div class="row">
+            <select id="tour-add-source" aria-label="Tank à ajouter"></select>
+            <button id="tour-add" class="btn small">＋ Ajouter</button>
+          </div>
+          <p id="tour-msg" class="status" aria-live="polite"></p>
+          <div class="table-wrap"><table id="tour-roster" class="roster"></table></div>
+        </div>
+
+        <div class="card">
+          <h3>Règlement</h3>
+          <div class="row settings-row">
+            <label class="inline">Manches par rencontre
+              <select id="tour-rounds">
+                <option value="1">1</option>
+                <option value="2" selected>2</option>
+                <option value="4">4</option>
+              </select>
+            </label>
+            <label class="inline">Durée d'une manche
+              <select id="tour-duration">
+                <option value="1800">30 s</option>
+                <option value="3600" selected>1 min</option>
+              </select>
+            </label>
+          </div>
+          <p class="hint">Victoire : 3 points · match nul : 1 point · défaite : 0. En cas d'égalité de points : le plus de dégâts infligés, puis le plus de victoires. Les positions de départ changent à chaque manche, et l'ordre des tanks est inversé une manche sur deux.</p>
+          <p id="tour-estimate" class="hint"></p>
+          <button id="tour-run" class="btn accent big">🏆 Lancer le tournoi</button>
+          <progress id="tour-progress" max="1" value="0" hidden></progress>
+          <p id="tour-progress-text" class="hint" hidden></p>
+        </div>
+
+        <div class="card" id="tour-results" hidden>
+          <div class="card-title">
+            <h3>Classement</h3>
+            <div class="row tight">
+              <button id="tour-final" class="btn accent small" title="Les 4 premiers s'affrontent dans l'arène">🎬 Finale dans l'arène</button>
+              <button id="tour-csv" class="btn small" title="Pour un tableur">⬇️ Classement (CSV)</button>
+            </div>
+          </div>
+          <p id="tour-meta" class="hint"></p>
+          <div class="table-wrap"><table id="tour-table" class="results standings"></table></div>
+          <h3 class="sub">Rencontres</h3>
+          <div class="row">
+            <label class="inline">Voir les rencontres de
+              <select id="tour-filter"></select>
+            </label>
+          </div>
+          <p class="hint">Score = manches gagnées par chacun (* = au moins un match nul). ▶ rejoue une manche dans l'arène, exactement comme elle s'est déroulée.</p>
+          <ul id="tour-pairs" class="pairs"></ul>
+        </div>
+      </div>
+    </section>
+
     <!-- ===================== GUIDE ===================== -->
     <section id="view-guide" class="view guide" role="tabpanel" aria-labelledby="tab-guide">
       <article class="guide-body">
@@ -247,6 +318,7 @@
           <a href="#g-blocs">Les blocs</a>
           <a href="#g-astuces">Astuces</a>
           <a href="#g-clavier">Pilotage au clavier</a>
+          <a href="#g-tournoi">Tournoi de classe</a>
           <a href="#g-credits">Crédits</a>
         </nav>
 
@@ -388,6 +460,15 @@
         <p>Choisis « 🎮 Pilote clavier » parmi les participants pour conduire un tank toi-même contre des programmes.</p>
         <div id="guide-keys"></div>
 
+        <h2 id="g-tournoi">🏆 Tournoi de classe</h2>
+        <ol>
+          <li>Chaque élève donne à son tank un nom avec son prénom, puis clique sur <strong>⬇️ Exporter</strong> dans l'atelier.</li>
+          <li>Rassemble les fichiers <code>.tank.json</code> sur un ordinateur (clé USB, messagerie, ENT…).</li>
+          <li>Dans l'onglet <a href="#tournoi"><strong>🏆 Tournoi</strong></a>, importe-les tous d'un coup (ou glisse-les dans le cadre), choisis le nombre de manches, puis lance le tournoi.</li>
+          <li>Projette le classement, rejoue les manches les plus intéressantes, et termine par la <strong>finale à quatre</strong> dans l'arène.</li>
+        </ol>
+        <p>Tu peux ajouter des tanks d'exemple (Sentinelle, Chasseur…) comme adversaires de référence. Le classement s'exporte au format CSV pour un tableur.</p>
+
         <h2 id="g-credits">🙏 Crédits</h2>
         <p>Les règles du jeu (arène, file d'ordres, canon et radar verrouillables, événements, dégâts et score) reprennent celles du projet open source <a href="https://github.com/code-tanks/code-tanks" target="_blank" rel="noopener">code-tanks</a> (licence Apache 2.0), où l'on programme les tanks en Python, Rust, Java… Ici, on les programme avec <a href="https://developers.google.com/blockly" target="_blank" rel="noopener">Blockly</a> (licence Apache 2.0), directement dans le navigateur.</p>
         <p>Tes tanks sont enregistrés uniquement dans ce navigateur. Utilise « Exporter » pour les sauvegarder dans un fichier ou les partager.</p>
@@ -435,14 +516,15 @@
   <script src="vendor/blockly/blocks_compressed.js"></script>
   <script src="vendor/blockly/javascript_compressed.js"></script>
   <script src="vendor/blockly/msg/fr.js"></script>
-  <script src="js/engine.js?v=4"></script>
-  <script src="js/runtime.js?v=4"></script>
-  <script src="js/blocks.js?v=4"></script>
-  <script src="js/bots.js?v=4"></script>
-  <script src="js/missions.js?v=4"></script>
-  <script src="js/renderer.js?v=4"></script>
-  <script src="js/audio.js?v=4"></script>
-  <script src="js/storage.js?v=4"></script>
-  <script src="js/app.js?v=4"></script>
+  <script src="js/engine.js?v=7"></script>
+  <script src="js/runtime.js?v=7"></script>
+  <script src="js/blocks.js?v=7"></script>
+  <script src="js/bots.js?v=7"></script>
+  <script src="js/missions.js?v=7"></script>
+  <script src="js/tournament.js?v=7"></script>
+  <script src="js/renderer.js?v=7"></script>
+  <script src="js/audio.js?v=7"></script>
+  <script src="js/storage.js?v=7"></script>
+  <script src="js/app.js?v=7"></script>
 </body>
 </html>
