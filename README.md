@@ -2,11 +2,14 @@
 
 Un jeu de programmation : on écrit avec des **blocs Blockly** le programme d'un tank, puis il affronte seul jusqu'à trois autres tanks dans une arène.
 
+**▶ Jouer en ligne : <https://lapin-blanc.github.io/tankoblocs/>**
+
 Les règles reprennent celles du projet open source [code-tanks](https://github.com/code-tanks/code-tanks) (Apache 2.0), où les tanks se programment en Python, Rust, Java… Ici, tout se fait en blocs, dans le navigateur, sans serveur ni Docker.
 
 ## Lancer le jeu
 
-- **Le plus simple :** ouvrir `index.html` dans Chrome, Edge ou Firefox (double-clic). Tout est inclus, y compris Blockly : aucune connexion Internet n'est nécessaire.
+- **En ligne :** <https://lapin-blanc.github.io/tankoblocs/>, rien à installer.
+- **Sur son ordinateur :** télécharger le dépôt, puis ouvrir `index.html` dans Chrome, Edge ou Firefox (double-clic). Tout est inclus, y compris Blockly : aucune connexion Internet n'est nécessaire.
 - **Avec un petit serveur local** (si le navigateur refuse les fichiers locaux) :
   ```bash
   python3 -m http.server 8000
@@ -116,7 +119,9 @@ Ouvrir `tests/index.html` (de la même façon que le jeu). 61 tests vérifient :
 - la compilation puis l'exécution de chaque exemple ;
 - pour chaque mission : la solution réussit (sur 10 positions de départ quand elles sont aléatoires), le programme de départ ne suffit pas, et tous les blocs de la solution figurent dans la boîte à outils de la mission.
 
-## Licences
+## Licence
 
-- Blockly : Apache 2.0, © Google.
+Copyright 2026 Fabien Toune. TankoBlocs est distribué sous **licence Apache 2.0** : voir [LICENSE](LICENSE) et [NOTICE](NOTICE). Vous pouvez l'utiliser, le modifier et le redistribuer, y compris en classe, en conservant ces mentions.
+
+- Blockly : Apache 2.0, © Google LLC (voir `vendor/blockly/`).
 - Règles du jeu : inspirées de code-tanks (Apache 2.0). Le code, les graphismes et les sons de TankoBlocs sont originaux ; aucun fichier du projet d'origine n'est repris.
