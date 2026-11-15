@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TankoBlocs</title>
+  <meta name="description" content="Programme ton tank avec des blocs et affronte les autres dans l'arène.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='9' width='22' height='15' rx='4' fill='%23D9822B'/%3E%3Crect x='2' y='6' width='24' height='4' rx='2' fill='%2326323a'/%3E%3Crect x='2' y='23' width='24' height='4' rx='2' fill='%2326323a'/%3E%3Ccircle cx='13' cy='16.5' r='5' fill='%23F0B27A'/%3E%3Crect x='15' y='15' width='15' height='3' rx='1' fill='%233a4248'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css?v=4">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#atelier" aria-label="TankoBlocs, accueil">
+      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true">
+        <rect x="3" y="9" width="22" height="15" rx="4" fill="#D9822B"/>
+        <path d="M9 9h5v1.6a2.5 2.5 0 0 1-5 0z" fill="#182127"/>
+        <rect x="2" y="6" width="24" height="4" rx="2" fill="#2f3b43"/>
+        <rect x="2" y="23" width="24" height="4" rx="2" fill="#2f3b43"/>
+        <circle cx="13" cy="16.5" r="5" fill="#F0B27A"/>
+        <rect x="15" y="15" width="15" height="3" rx="1" fill="#55626b"/>
+      </svg>
+      <span>Tanko<b>Blocs</b></span>
+    </a>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button role="tab" id="tab-missions" data-view="missions" aria-controls="view-missions" aria-selected="false">🎓 <span>Missions</span></button>
+      <button role="tab" id="tab-atelier" data-view="atelier" aria-controls="view-atelier" aria-selected="true">🛠️ <span>Atelier</span></button>
+      <button role="tab" id="tab-arene" data-view="arene" aria-controls="view-arene" aria-selected="false">⚔️ <span>Arène</span></button>
+      <button role="tab" id="tab-guide" data-view="guide" aria-controls="view-guide" aria-selected="false">📖 <span>Guide</span></button>
+    </nav>
+    <div class="topbar-right">
+      <button id="btn-sound" class="icon-btn" title="Couper / activer le son" aria-pressed="true">🔊</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ===================== MISSIONS ===================== -->
+    <section id="view-missions" class="view missions" role="tabpanel" aria-labelledby="tab-missions">
+      <div class="missions-body">
+        <h1>🎓 Le parcours du pilote-programmeur</h1>
+        <p class="lead">Onze missions courtes pour apprendre, une notion à la fois : avancer, tourner, enchaîner des instructions, tirer, utiliser une variable, le radar, les conditions… jusqu'à ton premier duel.</p>
+        <p class="hint">Chaque mission te donne seulement les blocs utiles. Si tu bloques, demande un indice. Tes programmes et ta progression sont gardés dans ce navigateur.</p>
+        <div class="missions-progress">
+          <progress id="missions-bar" max="11" value="0"></progress>
+          <span id="missions-count"></span>
+          <button id="missions-reset" class="btn small">Remettre à zéro</button>
+        </div>
+        <ol id="missions-grid" class="missions-grid"></ol>
+        <p class="hint">Après le parcours, l'<a href="#atelier">Atelier</a> te laisse tous les blocs pour créer tes propres tanks, et l'<a href="#arene">Arène</a> pour les faire combattre.</p>
+      </div>
+    </section>
+
+    <!-- ===================== ATELIER ===================== -->
+    <section id="view-atelier" class="view active" role="tabpanel" aria-labelledby="tab-atelier">
+      <div class="editor-wrap">
+        <div id="blockly" class="blockly-area" aria-label="Éditeur de blocs"></div>
+      </div>
+      <aside class="side">
+        <div id="side-mission" class="mission-panel" hidden>
+          <div class="card">
+            <div class="mission-top">
+              <span class="badge mission-badge" id="mp-num"></span>
+              <button id="mp-quit" class="btn small" title="Revenir à l'atelier libre">✕ Quitter la mission</button>
+            </div>
+            <h2 id="mp-title" class="mp-title"></h2>
+            <p id="mp-concept" class="mp-concept"></p>
+            <div id="mp-goal" class="goal"></div>
+            <div id="mp-intro" class="mp-intro"></div>
+            <p id="mp-blocks" class="block-count" hidden></p>
+            <button id="mp-test" class="btn accent big">▶ Tester mon programme</button>
+            <p id="mp-status" class="status" aria-live="polite"></p>
+          </div>
+          <div class="card">
+            <div class="row tight">
+              <button id="mp-hint" class="btn small">💡 Un indice</button>
+              <button id="mp-solution" class="btn small">🔑 Solution</button>
+              <button id="mp-reset" class="btn small">↺ Recommencer</button>
+            </div>
+            <ol id="mp-hints" class="hints"></ol>
+          </div>
+          <div class="mission-nav">
+            <button id="mp-prev" class="btn small">◀ Précédente</button>
+            <button id="mp-list" class="btn small">🎓 Toutes</button>
+            <button id="mp-next" class="btn small">Suivante ▶</button>
+          </div>
+        </div>
+
+        <div id="side-normal" class="side-normal">
+        <div class="card">
+          <div class="tank-head">
+            <span class="dot big" id="tank-dot"></span>
+            <label class="grow">
+              <span class="sr-only">Nom du tank</span>
+              <input id="tank-name" type="text" maxlength="40" placeholder="Nom du tank" autocomplete="off">
+            </label>
+          </div>
+          <div class="swatches" id="tank-colors" role="radiogroup" aria-label="Couleur du tank"></div>
+          <div class="row">
+            <button id="btn-save" class="btn primary">💾 Enregistrer</button>
+            <button id="btn-new" class="btn">✨ Nouveau</button>
+            <button id="btn-export" class="btn" title="Télécharger ce tank dans un fichier">⬇️ Exporter</button>
+          </div>
+          <p class="status" id="save-status" aria-live="polite"></p>
+          <div class="test-box">
+            <label for="test-opponent">Tester mon tank contre</label>
+            <div class="row">
+              <select id="test-opponent"></select>
+              <button id="btn-test" class="btn accent">⚔️ Combattre</button>
+            </div>
+          </div>
+          <p class="status error" id="last-error" hidden></p>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <h3>Mes tanks</h3>
+            <button id="btn-import" class="btn small">📂 Importer…</button>
+            <input type="file" id="file-import" accept=".json,application/json" hidden>
+          </div>
+          <ul id="my-tanks" class="tank-list"></ul>
+        </div>
+
+        <div class="card">
+          <h3>Exemples à étudier</h3>
+          <ul id="examples" class="tank-list"></ul>
+        </div>
+
+        <details class="card" id="code-details">
+          <summary>👀 Voir le code JavaScript généré</summary>
+          <p class="hint">Voici le programme que tes blocs fabriquent. Chaque bloc devient une instruction <code>tank.…</code>.</p>
+          <pre id="code-preview" class="code"></pre>
+        </details>
+        </div>
+      </aside>
+    </section>
+
+    <!-- ===================== ARÈNE ===================== -->
+    <section id="view-arene" class="view" role="tabpanel" aria-labelledby="tab-arene">
+      <div class="arena-main">
+        <div class="hud">
+          <span id="hud-time" class="hud-time">0:00</span>
+          <span id="hud-state" class="hud-state">Prêt</span>
+          <span id="hud-tick" class="hud-tick">tick 0</span>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="arena" aria-label="Arène de combat"></canvas>
+          <div id="arena-overlay" class="arena-overlay" hidden></div>
+        </div>
+        <div class="controls">
+          <button id="btn-play" class="btn primary">▶ Lancer</button>
+          <button id="btn-step" class="btn" title="Avancer d'un seul tick">⏭ Un tick</button>
+          <button id="btn-restart" class="btn" title="Rejouer exactement la même partie">↺ Rejouer</button>
+          <button id="btn-new-match" class="btn" title="Nouvelles positions de départ">🎲 Nouvelle partie</button>
+          <label class="inline">Vitesse
+            <select id="speed">
+              <option value="0.25">× ¼</option>
+              <option value="0.5">× ½</option>
+              <option value="1" selected>× 1</option>
+              <option value="2">× 2</option>
+              <option value="4">× 4</option>
+              <option value="8">× 8</option>
+              <option value="16">× 16</option>
+            </select>
+          </label>
+          <span class="toggles">
+            <label class="inline"><input type="checkbox" id="opt-radar" checked> Radars</label>
+            <label class="inline"><input type="checkbox" id="opt-labels" checked> Noms</label>
+            <label class="inline"><input type="checkbox" id="opt-debug"> Ordres</label>
+          </span>
+        </div>
+        <div id="pilot-help" class="pilot-help" hidden></div>
+      </div>
+
+      <aside class="side">
+        <div class="card mission-card" id="mission-card" hidden>
+          <h3 id="mc-num">Mission</h3>
+          <div class="mc-title" id="mc-title"></div>
+          <div class="goal" id="mc-goal"></div>
+          <ul id="mc-progress" class="mc-progress"></ul>
+          <div class="row">
+            <button id="mc-edit" class="btn">🛠️ Modifier mon programme</button>
+            <button id="mc-quit" class="btn small">✕ Quitter la mission</button>
+          </div>
+        </div>
+
+        <div class="card" id="card-slots">
+          <h3>Participants</h3>
+          <div id="slots" class="slots"></div>
+          <div class="row settings">
+            <label class="inline">Durée
+              <select id="duration">
+                <option value="1800">30 s</option>
+                <option value="3600" selected>1 min</option>
+                <option value="7200">2 min</option>
+                <option value="18000">5 min</option>
+              </select>
+            </label>
+            <label class="inline">Graine
+              <input id="seed" type="number" min="1" max="999999" step="1" title="Le même nombre redonne les mêmes positions de départ">
+            </label>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Tableau de bord</h3>
+          <div id="scoreboard" class="scoreboard"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <h3>Journal</h3>
+            <button id="btn-clear-log" class="btn small">Effacer</button>
+          </div>
+          <div id="journal" class="journal" aria-live="off"></div>
+        </div>
+
+        <div class="card" id="card-cup">
+          <h3>Championnat express</h3>
+          <p class="hint">Enchaîne de nombreuses parties en calcul rapide (sans affichage), avec des positions de départ différentes à chaque manche.</p>
+          <div class="row">
+            <select id="cup-rounds" aria-label="Nombre de manches">
+              <option value="10">10 manches</option>
+              <option value="25" selected>25 manches</option>
+              <option value="50">50 manches</option>
+              <option value="100">100 manches</option>
+            </select>
+            <button id="btn-cup" class="btn accent">🏆 Lancer</button>
+          </div>
+          <progress id="cup-progress" max="1" value="0" hidden></progress>
+          <div id="cup-results"></div>
+        </div>
+      </aside>
+    </section>
+
+    <!-- ===================== GUIDE ===================== -->
+    <section id="view-guide" class="view guide" role="tabpanel" aria-labelledby="tab-guide">
+      <article class="guide-body">
+        <h1>Bienvenue dans TankoBlocs</h1>
+        <p class="lead">Tu ne pilotes pas ton tank : tu écris le <strong>programme</strong> qui le pilote. Ensuite, il affronte seul jusqu'à trois autres tanks dans l'arène. Le gagnant est celui qui inflige le plus de dégâts.</p>
+
+        <nav class="toc" aria-label="Sommaire">
+          <a href="#g-depart">Démarrage rapide</a>
+          <a href="#g-arene">L'arène</a>
+          <a href="#g-temps">Les ticks et la file d'ordres</a>
+          <a href="#g-tank">Anatomie du tank</a>
+          <a href="#g-evenements">Les événements</a>
+          <a href="#g-degats">Dégâts et victoire</a>
+          <a href="#g-blocs">Les blocs</a>
+          <a href="#g-astuces">Astuces</a>
+          <a href="#g-clavier">Pilotage au clavier</a>
+          <a href="#g-credits">Crédits</a>
+        </nav>
+
+        <h2 id="g-depart">🚀 Démarrage rapide</h2>
+        <p>Tu débutes ? Commence par le parcours de l'onglet <a href="#missions"><strong>🎓 Missions</strong></a> : onze petites missions guidées, avec des indices. Sinon :</p>
+        <ol>
+          <li>Dans l'<strong>Atelier</strong>, un premier programme est déjà prêt. Donne un nom à ton tank et choisis sa couleur.</li>
+          <li>Glisse des blocs depuis les catégories de gauche et emboîte-les dans les blocs orange (« événements »).</li>
+          <li>Clique sur <strong>⚔️ Combattre</strong> pour essayer ton tank contre un exemple.</li>
+          <li>Observe, modifie, recommence ! Pense à <strong>💾 Enregistrer</strong> tes meilleurs tanks.</li>
+        </ol>
+        <p>Les exemples (Sentinelle, Vagabond, Chasseur…) sont faits avec les mêmes blocs que toi : ouvre-les pour voir comment ils fonctionnent.</p>
+
+        <h2 id="g-arene">🗺️ L'arène</h2>
+        <div class="two-cols">
+          <div>
+            <p>L'arène mesure <strong>1024 × 640 pixels</strong>. Son centre est le point <strong>(0, 0)</strong> :</p>
+            <ul>
+              <li><strong>x</strong> va de −512 (bord gauche) à 512 (bord droit) ;</li>
+              <li><strong>y</strong> va de −320 (bas) à 320 (haut).</li>
+            </ul>
+            <p>Les angles sont en <strong>degrés</strong>, comme en mathématiques : 0° vers la droite, 90° vers le haut, 180° vers la gauche, 270° vers le bas. « Gauche ↺ » veut dire « dans le sens inverse des aiguilles d'une montre ».</p>
+            <p>Les blocs de maths (sinus, cosinus, atan2…) utilisent les mêmes degrés.</p>
+          </div>
+          <figure class="diagram">
+            <svg viewBox="0 0 260 190" role="img" aria-label="Repère : x vers la droite, y vers le haut, angles de 0 à 270 degrés">
+              <rect x="10" y="10" width="240" height="150" rx="4" class="d-arena"/>
+              <line x1="10" y1="85" x2="250" y2="85" class="d-axis"/>
+              <line x1="130" y1="10" x2="130" y2="160" class="d-axis"/>
+              <text x="236" y="80" class="d-label">x</text>
+              <text x="135" y="22" class="d-label">y</text>
+              <text x="134" y="98" class="d-small">(0, 0)</text>
+              <text x="12" y="176" class="d-small">(−512, −320)</text>
+              <text x="190" y="176" class="d-small">(512, 320) ↗</text>
+              <g transform="translate(130 85)">
+                <circle r="34" class="d-circle"/>
+                <line x1="0" y1="0" x2="44" y2="0" class="d-ray"/>
+                <line x1="0" y1="0" x2="0" y2="-44" class="d-ray"/>
+                <line x1="0" y1="0" x2="-44" y2="0" class="d-ray"/>
+                <line x1="0" y1="0" x2="0" y2="44" class="d-ray"/>
+                <text x="48" y="-4" class="d-angle">0°</text>
+                <text x="4" y="-48" class="d-angle">90°</text>
+                <text x="-74" y="-4" class="d-angle">180°</text>
+                <text x="4" y="58" class="d-angle">270°</text>
+                <path d="M 24 -8 A 25 25 0 0 0 8 -24" class="d-arc"/>
+              </g>
+            </svg>
+          </figure>
+        </div>
+
+        <h2 id="g-temps">⏱️ Les ticks et la file d'ordres</h2>
+        <p>Le temps avance par petits pas appelés <strong>ticks</strong> : il y en a <strong>60 par seconde</strong>. À chaque tick, chaque tank exécute <strong>un seul ordre</strong> (par exemple « avancer » ou « avancer + tourner + tirer »).</p>
+        <p>Chaque tank possède une <strong>file d'ordres</strong>, comme une liste de choses à faire. Les blocs d'action n'agissent pas tout de suite : ils <em>ajoutent des ordres</em> dans la file. « avancer pendant 60 ticks » ajoute 60 ordres « avancer ».</p>
+        <div class="steps">
+          <div class="step"><b>1</b><span>Si la file d'un tank est vide, son bloc <strong>🔁 quand je n'ai plus d'ordres</strong> est exécuté pour la remplir.</span></div>
+          <div class="step"><b>2</b><span>Chaque tank exécute le premier ordre de sa file.</span></div>
+          <div class="step"><b>3</b><span>Les tanks et les obus se déplacent ; on calcule les chocs et ce que voient les radars.</span></div>
+          <div class="step"><b>4</b><span>Les <strong>événements</strong> (radar, touché, impact) sont envoyés aux tanks. Les ordres ajoutés par un événement passent <strong>en tête de file</strong>.</span></div>
+        </div>
+        <p>💡 Au début d'un événement, le bloc <strong>❌ annuler les ordres prévus</strong> permet d'oublier ce qui était prévu pour réagir tout de suite.</p>
+        <table class="ref">
+          <thead><tr><th>Mesure</th><th>Valeur</th></tr></thead>
+          <tbody>
+            <tr><td>Vitesse du tank</td><td>100 pixels par seconde (≈ 1,67 pixel par tick)</td></tr>
+            <tr><td>Rotation (tank, canon ou radar)</td><td>54° par seconde (0,9° par tick)</td></tr>
+            <tr><td>Vitesse d'un obus</td><td>200 pixels par seconde (≈ 3,33 pixels par tick)</td></tr>
+            <tr><td>Recharge du canon</td><td>60 ticks (1 seconde) entre deux tirs</td></tr>
+            <tr><td>Rayon d'un tank / d'un obus</td><td>19 pixels / 5 pixels</td></tr>
+          </tbody>
+        </table>
+
+        <h2 id="g-tank">🛡️ Anatomie du tank</h2>
+        <ul>
+          <li><strong>Le châssis</strong> (le tank) : il avance, recule et tourne.</li>
+          <li><strong>Le canon</strong> est posé sur le châssis. S'il est <em>verrouillé</em>, il tourne avec le châssis.</li>
+          <li><strong>Le radar</strong> est posé sur le canon. S'il est <em>verrouillé</em>, il tourne avec le canon.</li>
+        </ul>
+        <p>Au départ, tout est verrouillé : le canon et le radar regardent dans la même direction que le tank. <strong>Déverrouille</strong> le canon pour pouvoir viser dans une direction et rouler dans une autre. Garder le radar verrouillé sur le canon est souvent malin : quand le radar voit une cible, le canon est déjà pointé vers elle !</p>
+        <p>Le radar est un faisceau très fin (moins de 2°) qui traverse toute l'arène. Il ne détecte un objet qu'au moment où celui-ci <strong>entre</strong> dans le faisceau : pour suivre une cible, il faut donc balayer de part et d'autre.</p>
+
+        <h2 id="g-evenements">📣 Les événements</h2>
+        <table class="ref">
+          <thead><tr><th>Bloc</th><th>Quand ?</th></tr></thead>
+          <tbody>
+            <tr><td>🚦 au démarrage de la partie</td><td>Une fois, au début. Pour préparer les variables, déverrouiller le canon…</td></tr>
+            <tr><td>🔁 quand je n'ai plus d'ordres</td><td>Chaque fois que la file d'ordres est vide : c'est le programme principal.</td></tr>
+            <tr><td>📡 quand mon radar détecte…</td><td>Un tank, un obus ennemi ou un mur entre dans le faisceau du radar.</td></tr>
+            <tr><td>💥 quand je suis touché par…</td><td>Un obus me touche, ou je heurte un tank ou un mur.</td></tr>
+            <tr><td>🎯 quand mon obus touche…</td><td>Un de mes obus atteint un tank, un obus ou un mur.</td></tr>
+          </tbody>
+        </table>
+        <p>Dans ces trois derniers blocs, les blocs violets <strong>« objet : … »</strong> décrivent l'objet concerné : sa position, sa distance, l'angle pour le viser, sa vitesse (en pixels par tick), son nom… Pour un mur, la position est le point du mur touché (ou visé par le radar) et la direction est perpendiculaire au mur, vers l'intérieur de l'arène.</p>
+
+        <h2 id="g-degats">💯 Dégâts et victoire</h2>
+        <ul>
+          <li>Chaque tank commence avec <strong>100 points de santé</strong>.</li>
+          <li>Un obus reçu, un choc contre un mur ou contre un autre tank : <strong>−10</strong>.</li>
+          <li>À 0, le tank est détruit et reste sur place comme une épave.</li>
+          <li>La partie s'arrête quand il ne reste qu'un tank, ou quand le temps est écoulé.</li>
+          <li><strong>Le vainqueur est celui qui a infligé le plus de dégâts</strong> avec ses obus. En cas d'égalité : le plus de santé restante, puis le plus long temps de survie.</li>
+        </ul>
+        <p>Si un programme provoque une erreur (ou une boucle sans fin), le tank tombe <strong>en panne</strong> ⚠ : il ne bouge plus jusqu'à la fin de la partie. Le journal indique ce qui s'est passé.</p>
+
+        <h2 id="g-blocs">🧩 Les blocs</h2>
+        <h3>Mouvement</h3>
+        <dl class="blocks-ref">
+          <dt><span class="b b-move">avancer pendant 60 ticks</span></dt><dd>Avance (ou recule) pendant un nombre de ticks.</dd>
+          <dt><span class="b b-move">avancer de 100 pixels</span></dt><dd>Avance d'une distance (le nombre de ticks est calculé pour toi).</dd>
+          <dt><span class="b b-move">tourner le canon vers la gauche de 90 °</span></dt><dd>Tourne le tank, le canon ou le radar d'un angle donné. Il existe aussi la version « pendant … ticks ».</dd>
+          <dt><span class="b b-move">orienter le canon vers l'angle 90 °</span></dt><dd>Tourne par le chemin le plus court pour viser un angle précis. Tient compte des rotations déjà prévues dans le même événement.</dd>
+          <dt><span class="b b-move">orienter le canon vers le point x … y …</span></dt><dd>Vise un point. Avec « objet : x » et « objet : y », vise l'objet détecté.</dd>
+          <dt><span class="b b-move">pendant 60 ticks, en même temps : …</span></dt><dd>Combine dans chaque tick un déplacement, trois rotations et un tir (le tir part dès que le canon est prêt).</dd>
+          <dt><span class="b b-move">⏳ attendre 30 ticks</span></dt><dd>Ne rien faire.</dd>
+        </dl>
+        <h3>Canon et radar</h3>
+        <dl class="blocks-ref">
+          <dt><span class="b b-weapon">🔥 tirer maintenant</span></dt><dd>Tire si le canon est prêt (sinon, rien ne se passe). « dès que le canon est prêt » attend la fin de la recharge.</dd>
+          <dt><span class="b b-weapon">❌ annuler les ordres prévus</span></dt><dd>Vide la file d'ordres immédiatement.</dd>
+          <dt><span class="b b-weapon">🔓 déverrouiller le canon</span></dt><dd>Le canon ne suit plus les rotations du tank (même chose pour le radar et le canon).</dd>
+          <dt><span class="b b-weapon">🌑 éteindre le radar</span></dt><dd>Plus aucun événement radar tant qu'il est éteint.</dd>
+        </dl>
+        <h3>Capteurs</h3>
+        <p>Ma position, mes directions, ma santé, la recharge, le temps restant, le nombre d'adversaires en vie… mais aussi « angle vers x y », « distance jusqu'à x y » et « écart d'angle de … vers … » (entre −180 et 180) pour faire de la géométrie sans se fatiguer.</p>
+        <h3>Journal</h3>
+        <p>« 💬 dire » affiche une bulle au-dessus du tank ; « 📝 afficher » écrit dans le journal de l'arène. Très pratique pour comprendre ce que fait le programme !</p>
+
+        <h2 id="g-astuces">🧠 Astuces</h2>
+        <ul>
+          <li><strong>Garder la cible dans le radar :</strong> après chaque détection, fais repartir le canon (et donc le radar) un peu en arrière. Il repassera aussitôt sur la cible : c'est le secret de la Sentinelle.</li>
+          <li><strong>Viser une cible qui bouge :</strong> l'obus met <em>distance ÷ 3,33</em> ticks pour arriver. Pendant ce temps, la cible se déplace de <em>vitesse × temps</em>. Vise donc le point <em>x + vitesse x × temps</em>, <em>y + vitesse y × temps</em>. Comme les tanks changent souvent de direction, le Chasseur n'anticipe que la moitié de ce temps.</li>
+          <li><strong>Ne pas foncer dans les murs :</strong> chaque choc coûte 10 points. Le capteur « près d'un mur ? » prévient avant qu'il soit trop tard.</li>
+          <li><strong>Rouler et chercher en même temps :</strong> le bloc « en même temps » permet d'avancer tout en faisant tourner le canon (voir le Vagabond).</li>
+          <li><strong>Ne pas gaspiller de ticks :</strong> « tirer maintenant » quand le canon n'est pas prêt fait perdre un tick. Vérifie d'abord « canon prêt à tirer ? ».</li>
+          <li><strong>Déboguer :</strong> coche « Ordres » sous l'arène pour voir l'ordre exécuté et la longueur de la file, avance tick par tick avec « ⏭ Un tick », et utilise « afficher ».</li>
+          <li><strong>Comparer deux versions :</strong> le championnat express fait jouer de nombreuses manches pour savoir quel tank est vraiment le meilleur.</li>
+        </ul>
+
+        <h2 id="g-clavier">🎮 Pilotage au clavier</h2>
+        <p>Choisis « 🎮 Pilote clavier » parmi les participants pour conduire un tank toi-même contre des programmes.</p>
+        <div id="guide-keys"></div>
+
+        <h2 id="g-credits">🙏 Crédits</h2>
+        <p>Les règles du jeu (arène, file d'ordres, canon et radar verrouillables, événements, dégâts et score) reprennent celles du projet open source <a href="https://github.com/code-tanks/code-tanks" target="_blank" rel="noopener">code-tanks</a> (licence Apache 2.0), où l'on programme les tanks en Python, Rust, Java… Ici, on les programme avec <a href="https://developers.google.com/blockly" target="_blank" rel="noopener">Blockly</a> (licence Apache 2.0), directement dans le navigateur.</p>
+        <p>Tes tanks sont enregistrés uniquement dans ce navigateur. Utilise « Exporter » pour les sauvegarder dans un fichier ou les partager.</p>
+      </article>
+    </section>
+  </main>
+
+  <dialog id="results-dialog" class="dialog" aria-labelledby="results-title">
+    <form method="dialog">
+      <h2 id="results-title">Fin de la partie</h2>
+      <p id="results-summary" class="lead"></p>
+      <div class="table-wrap"><table id="results-table" class="results"></table></div>
+      <p class="hint">Classement : dégâts infligés, puis santé restante, puis durée de survie.</p>
+      <div class="row end">
+        <button value="close" class="btn">Fermer</button>
+        <button value="edit" class="btn">🛠️ Retour à l'atelier</button>
+        <button value="replay" class="btn">↺ Rejouer</button>
+        <button value="new" class="btn primary">🎲 Nouvelle partie</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="mission-dialog" class="dialog small" aria-labelledby="md-title">
+    <form method="dialog">
+      <h2 id="md-title"></h2>
+      <p id="md-text" class="lead"></p>
+      <p id="md-tip" class="hint"></p>
+      <div class="row end" id="md-buttons"></div>
+    </form>
+  </dialog>
+
+  <dialog id="confirm-dialog" class="dialog small" aria-labelledby="confirm-text">
+    <form method="dialog">
+      <p id="confirm-text"></p>
+      <div class="row end">
+        <button value="no" class="btn">Annuler</button>
+        <button value="yes" class="btn primary" id="confirm-yes">Confirmer</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="boot-error" class="boot-error" hidden></div>
+
+  <script src="vendor/blockly/blockly_compressed.js"></script>
+  <script src="vendor/blockly/blocks_compressed.js"></script>
+  <script src="vendor/blockly/javascript_compressed.js"></script>
+  <script src="vendor/blockly/msg/fr.js"></script>
+  <script src="js/engine.js?v=4"></script>
+  <script src="js/runtime.js?v=4"></script>
+  <script src="js/blocks.js?v=4"></script>
+  <script src="js/bots.js?v=4"></script>
+  <script src="js/missions.js?v=4"></script>
+  <script src="js/renderer.js?v=4"></script>
+  <script src="js/audio.js?v=4"></script>
+  <script src="js/storage.js?v=4"></script>
+  <script src="js/app.js?v=4"></script>
+</body>
+</html>

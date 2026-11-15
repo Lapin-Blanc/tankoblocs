@@ -1,0 +1,5 @@
+Blockly 12.5.1 (paquet npm « blockly »)
+Copyright Google LLC — https://github.com/google/blockly
+Distribué sous licence Apache 2.0 (voir LICENSE).
+Fichiers repris sans modification : blockly_compressed.js, blocks_compressed.js,
+javascript_compressed.js, msg/fr.js, media/.
