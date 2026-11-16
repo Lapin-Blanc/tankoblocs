@@ -449,38 +449,42 @@
       ctx.save();
       ctx.translate(X, Y);
       ctx.rotate(-v.h * DEG);
-      // ombre
-      ctx.fillStyle = 'rgba(0,0,0,0.35)';
-      roundRect(ctx, -17, -14, 36, 31, 6);
-      ctx.fill();
-      // chenilles
-      ctx.fillStyle = dead ? '#1d2022' : '#262c30';
-      roundRect(ctx, -18, -17, 36, 9, 3);
-      ctx.fill();
-      roundRect(ctx, -18, 8, 36, 9, 3);
-      ctx.fill();
-      ctx.strokeStyle = dead ? '#2a2e30' : '#3b444a';
-      ctx.lineWidth = 1.2;
-      const off = roll % 6;
-      for (let i = -18 + off; i < 18; i += 6) {
-        ctx.beginPath();
-        ctx.moveTo(i, -16.5); ctx.lineTo(i, -8.5);
-        ctx.moveTo(i, 8.5); ctx.lineTo(i, 16.5);
+      if (root.TankSkin) {
+        root.TankSkin.drawHull(ctx, { color: t.color, dead, roll });
+      } else {
+        // ombre
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        roundRect(ctx, -17, -14, 36, 31, 6);
+        ctx.fill();
+        // chenilles
+        ctx.fillStyle = dead ? '#1d2022' : '#262c30';
+        roundRect(ctx, -18, -17, 36, 9, 3);
+        ctx.fill();
+        roundRect(ctx, -18, 8, 36, 9, 3);
+        ctx.fill();
+        ctx.strokeStyle = dead ? '#2a2e30' : '#3b444a';
+        ctx.lineWidth = 1.2;
+        const off = roll % 6;
+        for (let i = -18 + off; i < 18; i += 6) {
+          ctx.beginPath();
+          ctx.moveTo(i, -16.5); ctx.lineTo(i, -8.5);
+          ctx.moveTo(i, 8.5); ctx.lineTo(i, 16.5);
+          ctx.stroke();
+        }
+        // coque
+        ctx.fillStyle = base;
+        roundRect(ctx, -15, -10.5, 30, 21, 5);
+        ctx.fill();
+        ctx.strokeStyle = dead ? '#24282a' : shade(t.color, -0.45);
+        ctx.lineWidth = 1.5;
         ctx.stroke();
+        // reflets / détails
+        ctx.fillStyle = dead ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.18)';
+        roundRect(ctx, -12, -8, 24, 5, 2.5);
+        ctx.fill();
+        ctx.fillStyle = dead ? 'rgba(0,0,0,0.2)' : shade(t.color, -0.3);
+        ctx.fillRect(10, -7, 3, 14); // plaque avant
       }
-      // coque
-      ctx.fillStyle = base;
-      roundRect(ctx, -15, -10.5, 30, 21, 5);
-      ctx.fill();
-      ctx.strokeStyle = dead ? '#24282a' : shade(t.color, -0.45);
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-      // reflets / détails
-      ctx.fillStyle = dead ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.18)';
-      roundRect(ctx, -12, -8, 24, 5, 2.5);
-      ctx.fill();
-      ctx.fillStyle = dead ? 'rgba(0,0,0,0.2)' : shade(t.color, -0.3);
-      ctx.fillRect(10, -7, 3, 14); // plaque avant
       ctx.restore();
 
       // canon + tourelle
@@ -489,22 +493,26 @@
       ctx.rotate(-v.g * DEG);
       // recul du canon juste après un tir
       const recoil = !dead && t.cooldown > C.COOLDOWN - 8 ? (t.cooldown - (C.COOLDOWN - 8)) * 0.5 : 0;
-      ctx.fillStyle = dead ? '#2b2f31' : '#39434a';
-      ctx.strokeStyle = dead ? '#1e2123' : '#1f262b';
-      ctx.lineWidth = 1;
-      roundRect(ctx, 3 - recoil, -2.6, 21, 5.2, 1.5);
-      ctx.fill();
-      ctx.stroke();
-      ctx.fillStyle = dead ? '#24282a' : '#2a3237';
-      roundRect(ctx, 21 - recoil, -3.4, 5, 6.8, 1.5);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(0, 0, 8.5, 0, Math.PI * 2);
-      ctx.fillStyle = dead ? '#474c50' : shade(t.color, 0.22);
-      ctx.fill();
-      ctx.strokeStyle = dead ? '#24282a' : shade(t.color, -0.45);
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
+      if (root.TankSkin) {
+        root.TankSkin.drawTurret(ctx, { color: t.color, dead, recoil });
+      } else {
+        ctx.fillStyle = dead ? '#2b2f31' : '#39434a';
+        ctx.strokeStyle = dead ? '#1e2123' : '#1f262b';
+        ctx.lineWidth = 1;
+        roundRect(ctx, 3 - recoil, -2.6, 21, 5.2, 1.5);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = dead ? '#24282a' : '#2a3237';
+        roundRect(ctx, 21 - recoil, -3.4, 5, 6.8, 1.5);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(0, 0, 8.5, 0, Math.PI * 2);
+        ctx.fillStyle = dead ? '#474c50' : shade(t.color, 0.22);
+        ctx.fill();
+        ctx.strokeStyle = dead ? '#24282a' : shade(t.color, -0.45);
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
       ctx.restore();
 
       // antenne radar
