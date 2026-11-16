@@ -261,6 +261,22 @@
       eq(B.compileState(state, true).includes('autodestruction'), false);
     });
 
+    test('blocs : un commentaire de bloc ne peut pas ajouter de code', () => {
+      for (const sep of ['\r', '\u2028', '\u2029', '\n']) {
+        window.__tbInjection = 0;
+        const comment = { text: 'note' + sep + 'window.__tbInjection = 1;' + sep + '//', pinned: false, height: 80, width: 160 };
+        const state = Bots.program((h) => [h.onRun([{ type: 'ct_print', icons: { comment },
+          inputs: { TEXT: { block: { type: 'text', fields: { TEXT: 'a' + sep + 'b' } } } } }])]);
+        const code = B.compileState(state, true);
+        eq(/[\r\u2028\u2029]/.test(code), false, 'fin de ligne inattendue dans le code');
+        const m = new E.Match({ entrants: [RT.makeEntrant({ name: 'X', code }, 0, 1)], seed: 1, maxTicks: 60 });
+        run(m, 5);
+        assert(!m.tanks[0].broken, 'programme invalide : ' + m.tanks[0].error);
+        eq(window.__tbInjection, 0, 'le texte du commentaire a été exécuté');
+      }
+      delete window.__tbInjection;
+    });
+
     test('blocs : l\'aperçu du code ne contient pas la protection de boucle', () => {
       const ex = Bots.EXAMPLES.find((x) => x.id === 'ex-chasseur');
       const code = B.compileState(ex.workspace, false);
