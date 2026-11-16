@@ -1,13 +1,20 @@
 /*
  * TankoBlocs — apparence du tank (dessin vectoriel, canvas 2D).
  *
- * Module autonome : il ne dessine QUE le tank, dans un repère local où
+ * Fichier autonome : aucune modification du jeu n'est nécessaire.
+ * Il suffit de le charger APRÈS renderer.js, par exemple dans index.html :
+ *     <script src="js/renderer.js"></script>
+ *     <script src="js/tank_fabien.js"></script>
+ * Il remplace alors la méthode de dessin du tank (ArenaRenderer._drawTank).
+ * Pour revenir à l'ancien look, retirer simplement cette ligne.
+ *
+ * Il ne dessine QUE le tank, dans un repère local où
  *   - le centre du tank est en (0, 0),
  *   - l'avant pointe vers +x, la gauche du tank est en -y (écran).
  * Le renderer s'occupe de translater/pivoter le contexte avant l'appel.
  *
- *   TankSkin.drawHull(ctx, { color, dead, roll })     -> châssis + chenilles
- *   TankSkin.drawTurret(ctx, { color, dead, recoil }) -> tourelle + canon
+ *   drawHull(ctx, { color, dead, roll })     -> châssis + chenilles
+ *   drawTurret(ctx, { color, dead, recoil }) -> tourelle + canon
  *
  * Pour changer le look du tank, il suffit de modifier ce fichier.
  */
@@ -209,5 +216,59 @@
     ctx.stroke();
   }
 
-  root.TankSkin = { drawHull, drawTurret, shade };
+  /* ---------- branchement sur le renderer du jeu ---------- */
+
+  const DEG = Math.PI / 180;
+
+  function drawTank(ctx, v) {
+    const C = root.TankEngine.C;
+    const t = v.t;
+    const dead = !t.alive;
+    const st = this.trackState.get(t.index);
+    const X = this.X(v.x);
+    const Y = this.Y(v.y);
+
+    // châssis
+    ctx.save();
+    ctx.translate(X, Y);
+    ctx.rotate(-v.h * DEG);
+    drawHull(ctx, { color: t.color, dead, roll: st ? st.roll : 0 });
+    ctx.restore();
+
+    // tourelle + canon (recul juste après un tir)
+    ctx.save();
+    ctx.translate(X, Y);
+    ctx.rotate(-v.g * DEG);
+    const recoil = !dead && t.cooldown > C.COOLDOWN - 8 ? (t.cooldown - (C.COOLDOWN - 8)) * 0.5 : 0;
+    drawTurret(ctx, { color: t.color, dead, recoil });
+    ctx.restore();
+
+    // antenne radar
+    if (!dead) {
+      ctx.save();
+      ctx.translate(X, Y);
+      ctx.rotate(-v.r * DEG);
+      ctx.strokeStyle = t.radarOn ? '#eef6f7' : '#7d8a8f';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(-1, 0);
+      ctx.lineTo(5, 0);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(1.5, 0, 4.5, -1.1, 1.1);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // témoin de panne
+    if (t.broken && t.alive && Math.floor(performance.now() / 400) % 2 === 0) {
+      ctx.font = '700 16px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffd166';
+      ctx.fillText('⚠', X, Y + 6);
+    }
+  }
+
+  if (root.ArenaRenderer) root.ArenaRenderer.prototype._drawTank = drawTank;
+  root.TankFabien = { drawHull, drawTurret, shade };
 })(typeof window !== 'undefined' ? window : globalThis);
