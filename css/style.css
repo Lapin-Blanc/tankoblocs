@@ -296,16 +296,14 @@ input[type="checkbox"] { accent-color: var(--brand); width: 15px; height: 15px; 
   pointer-events: none;
 }
 .arena-overlay > div {
-  background: rgba(10, 15, 18, 0.52);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  background: rgba(10, 15, 18, 0.28);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 14px 22px;
   font-size: 18px;
   font-weight: 700;
   text-align: center;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.95), 0 0 10px rgba(0, 0, 0, 0.85);
 }
 .arena-overlay small { display: block; font-size: 13px; font-weight: 500; color: var(--muted); margin-top: 4px; }
 

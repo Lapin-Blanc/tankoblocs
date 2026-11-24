@@ -9,7 +9,7 @@ const APP_SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
-  './css/style.css?v=8',
+  './css/style.css?v=9',
   './js/engine.js?v=7',
   './js/runtime.js?v=7',
   './js/blocks.js?v=7',
