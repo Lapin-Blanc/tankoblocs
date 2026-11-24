@@ -3,13 +3,13 @@
 //
 // Incrémenter CACHE_VERSION à chaque changement notable (en même temps
 // que les ?v= de index.html) pour forcer le renouvellement du cache.
-const CACHE_VERSION = 'tankoblocs-v1';
+const CACHE_VERSION = 'tankoblocs-v2';
 
 const APP_SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
-  './css/style.css?v=7',
+  './css/style.css?v=8',
   './js/engine.js?v=7',
   './js/runtime.js?v=7',
   './js/blocks.js?v=7',
